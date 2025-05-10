@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Orbitarch - Space Debris AI Control</title>
+    <style>
+        :root {
+            --cosmic-black: #0a0a1a;
+            --nebula-purple: #4b0082;
+            --stellar-blue: #00b4d8;
+            --plasma-green: #39ff14;
+            --warning-red: #ff3860;
+        }
+
+        body {
+            margin: 0;
+            background: var(--cosmic-black);
+            color: white;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+        }
+
+        .cosmic-header {
+            background: linear-gradient(to right, #000428, #004e92);
+            padding: 1rem;
+            border-bottom: 2px solid var(--stellar-blue);
+        }
+
+        .nav-links {
+            display: flex;
+            justify-content: space-around;
+            list-style: none;
+            padding: 0;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 2rem;
+            padding: 2rem;
+        }
+
+        .stat-card {
+            padding: 2rem;
+            border-radius: 15px;
+            margin-bottom: 1rem;
+            border: 1px solid var(--stellar-blue);
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .probability-meter {
+            font-size: 3rem;
+            color: var(--plasma-green);
+            text-shadow: 0 0 10px rgba(57, 255, 20, 0.5);
+        }
+
+        #orbitCanvas {
+            width: 100%;
+            height: 400px;
+            border: 2px solid var(--nebula-purple);
+            border-radius: 10px;
+        }
+
+        .prediction-form {
+            max-width: 600px;
+            margin: 2rem auto;
+            padding: 2rem;
+            border: 1px solid var(--stellar-blue);
+            border-radius: 15px;
+        }
+
+        .form-group {
+            margin: 1rem 0;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--stellar-blue);
+            color: white;
+        }
+
+        button {
+            background: var(--stellar-blue);
+            color: white;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px var(--stellar-blue);
+        }
+
+        .data-display {
+            padding: 1rem;
+            margin: 1rem 0;
+            background: rgba(0, 0, 0, 0.3);
+            border-left: 4px solid var(--plasma-green);
+        }
+    </style>
+</head>
+<body>
+    <header class="cosmic-header">
+        <nav>
+            <ul class="nav-links">
+                <li><h1>ORBITARCH</h1></li>
+                <li><a href="#dashboard">Dashboard</a></li>
+                <li><a href="#predictions">Collision Predictor</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section id="dashboard" class="dashboard">
+            <div class="stats-container">
+                <div class="stat-card">
+                    <h3>Collision Probability</h3>
+                    <div class="probability-meter" id="probabilityMeter">0%</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Recommended Action</h3>
+                    <div class="data-display" id="actionRecommendation">NO ACTION NEEDED</div>
+                </div>
+            </div>
+            <canvas id="orbitCanvas"></canvas>
+        </section>
+
+        <section id="predictions" class="prediction-form">
+            <h2>Satellite Parameter Input</h2>
+            <form id="satelliteForm">
+                <div class="form-group">
+                    <label>Semi-Major Axis (km)</label>
+                    <input type="number" id="semiMajorAxis" required>
+                </div>
+                <div class="form-group">
+                    <label>Eccentricity</label>
+                    <input type="number" step="any" id="eccentricity" required>
+                </div>
+                <div class="form-group">
+                    <label>Inclination (°)</label>
+                    <input type="number" id="inclination" required>
+                </div>
+                <button type="submit">Calculate Collision Risk</button>
+            </form>
+            
+            <div class="recommendations">
+                <h3>Maneuver Details</h3>
+                <div class="data-display" id="thrustDetails"></div>
+                <div class="data-display" id="fuelCalculation"></div>
+                <div class="data-display" id="escapeVector"></div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Simple 2D Orbital Visualization
+        const canvas = document.getElementById('orbitCanvas');
+        const ctx = canvas.getContext('2d');
+        let debrisPositions = [];
+    
+        function initVisualization() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+    
+            debrisPositions = Array.from({length: 50}, () => ({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                risk: Math.random()
+            }));
+    
+            animate();
+        }
+    
+        function animate() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+            debrisPositions.forEach(debris => {
+                ctx.beginPath();
+                ctx.arc(debris.x, debris.y, 3, 0, Math.PI * 2);
+                ctx.fillStyle = debris.risk > 0.7 ? '#ff3860' : '#00b4d8';
+                ctx.fill();
+            });
+    
+            requestAnimationFrame(animate);
+        }
+    
+        document.getElementById('satelliteForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+    
+            const formData = {
+                semiMajorAxis: document.getElementById('semiMajorAxis').value,
+                eccentricity: document.getElementById('eccentricity').value,
+                inclination: document.getElementById('inclination').value
+            };
+    
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(formData)
+                });
+    
+                const data = await response.json();
+    
+                if(data.error) throw new Error(data.error);
+    
+                // Update UI with backend results
+                document.getElementById('probabilityMeter').textContent =
+                    `${(data.probability * 100).toFixed(1)}%`;
+    
+                document.getElementById('thrustDetails').textContent =
+                    `Thrust Needed: ${data.recommendations.thrust_needed} N`;
+    
+                document.getElementById('fuelCalculation').textContent =
+                    `Fuel Required: ${data.recommendations.fuel_used} kg`;
+    
+                document.getElementById('escapeVector').textContent =
+                    `Escape Vector: ${data.recommendations.adjustment_angle}°`;
+    
+                // Set Action Recommendation based on impact area
+                const impact = data.recommendations.impact_area;
+                const actionText = impact === "High Impact Area" ? "🚨 Immediate Maneuver Required"
+                                 : impact === "Medium Impact Area" ? "⚠️ Adjust Orbit Soon"
+                                 : "✅ No Action Needed";
+    
+                document.getElementById('actionRecommendation').textContent = actionText;
+    
+            } catch (error) {
+                console.error('Prediction error:', error);
+                alert('Error getting predictions: ' + error.message);
+            }
+        });
+    
+        initVisualization();  // Initialize canvas animation
+    </script>
+</body>
+</html>
